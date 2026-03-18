@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { Palette, Check } from 'lucide-react';
@@ -10,13 +10,18 @@ interface CropStepProps {
     onCropComplete: (croppedBlobUrl: string, bgColor: string) => void;
 }
 
-const ASPECT_RATIO = 3.5 / 4.5;
-const TARGET_WIDTH = 413;
-const TARGET_HEIGHT = 531;
+// High resolution constants for passport photos
+// Standard: 300 DPI for professional quality
+// 1 inch = 2.54 cm, so 1 cm = 300 DPI / 2.54 ≈ 118.11 pixels
+const DPI = 300;
+const INCH_TO_CM = 2.54;
+const CM_TO_PIXELS = DPI / INCH_TO_CM;
+const DEFAULT_WIDTH_CM = 2.5;
+const DEFAULT_HEIGHT_CM = 3.5;
 
 const PRESET_COLORS = [
-    '#ffffff', // White
     '#8ed1e7ff', // Light Blue
+    '#ffffff', // White
     '#85a2dcff', // Passport Blue
     '#9c9c9cff', // Light Gray
     '#f3f58bff', // Slate
@@ -26,6 +31,8 @@ const PRESET_COLORS = [
 export function CropStep({ imageUrl, onCropComplete }: CropStepProps) {
     const [crop, setCrop] = useState<Crop>();
     const [bgColor, setBgColor] = useState(PRESET_COLORS[0]);
+    const [widthCm, setWidthCm] = useState(DEFAULT_WIDTH_CM);
+    const [heightCm, setHeightCm] = useState(DEFAULT_HEIGHT_CM);
 
     // GSAP Refs
     const containerRef = useRef<HTMLDivElement>(null);
@@ -50,10 +57,25 @@ export function CropStep({ imageUrl, onCropComplete }: CropStepProps) {
         );
     }, { scope: containerRef });
 
+    // Update crop when aspect ratio changes
+    useEffect(() => {
+        if (crop && imgRef.current) {
+            const { width, height } = imgRef.current;
+            const aspectRatio = widthCm / heightCm;
+            const newCrop = centerCrop(
+                makeAspectCrop({ unit: '%', width: 90 }, aspectRatio, width, height),
+                width,
+                height
+            );
+            setCrop(newCrop);
+        }
+    }, [widthCm, heightCm]);
+
     const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
         const { width, height } = e.currentTarget;
+        const aspectRatio = widthCm / heightCm;
         const initialCrop = centerCrop(
-            makeAspectCrop({ unit: '%', width: 90 }, ASPECT_RATIO, width, height),
+            makeAspectCrop({ unit: '%', width: 90 }, aspectRatio, width, height),
             width,
             height
         );
@@ -69,9 +91,13 @@ export function CropStep({ imageUrl, onCropComplete }: CropStepProps) {
         // Button click animation
         gsap.to('.apply-btn', { scale: 0.95, duration: 0.1, yoyo: true, repeat: 1 });
 
+        // Calculate target dimensions from cm
+        const targetWidth = Math.round(widthCm * CM_TO_PIXELS);
+        const targetHeight = Math.round(heightCm * CM_TO_PIXELS);
+
         const canvas = document.createElement('canvas');
-        canvas.width = TARGET_WIDTH;
-        canvas.height = TARGET_HEIGHT;
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
         const ctx = canvas.getContext('2d');
 
         if (!ctx) return;
@@ -88,8 +114,8 @@ export function CropStep({ imageUrl, onCropComplete }: CropStepProps) {
             crop.height * scaleY,
             0,
             0,
-            TARGET_WIDTH,
-            TARGET_HEIGHT
+            targetWidth,
+            targetHeight
         );
 
         const blob = await new Promise<Blob>((resolve, reject) => {
@@ -111,7 +137,7 @@ export function CropStep({ imageUrl, onCropComplete }: CropStepProps) {
             <div ref={imagePanelRef} className="flex-1 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col items-center border border-gray-100 dark:border-gray-700">
                 <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 w-full text-center">
                     <h2 className="text-xl font-semibold mb-1 text-gray-800 dark:text-gray-100">Crop Subject</h2>
-                    <p className="text-sm text-gray-500">Lock size 3.5 x 4.5</p>
+                    <p className="text-sm text-gray-500">Lock size {widthCm} × {heightCm} cm</p>
                 </div>
 
                 <div className="p-4 relative w-full flex justify-center bg-checkered bg-[length:20px_20px] dark:bg-gray-800">
@@ -134,7 +160,7 @@ export function CropStep({ imageUrl, onCropComplete }: CropStepProps) {
                     <ReactCrop
                         crop={crop}
                         onChange={(c) => setCrop(c)}
-                        aspect={ASPECT_RATIO}
+                        aspect={widthCm / heightCm}
                         className="max-h-[60vh] object-contain shadow-sm border border-gray-200"
                     >
                         <img
@@ -184,6 +210,51 @@ export function CropStep({ imageUrl, onCropComplete }: CropStepProps) {
                             className="w-full h-10 p-0 border-0 rounded cursor-pointer [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch-wrapper]:rounded-lg [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-lg shadow-inner"
                         />
                     </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl flex flex-col gap-4 border border-gray-100 dark:border-gray-700">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">Crop Size (cm)</h3>
+                    
+                    <div className="flex gap-3">
+                        <div className="flex-1">
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                Width
+                            </label>
+                            <input
+                                type="number"
+                                value={widthCm}
+                                onChange={(e) => setWidthCm(parseFloat(e.target.value) || DEFAULT_WIDTH_CM)}
+                                step="0.1"
+                                min="0.5"
+                                max="20"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                Height
+                            </label>
+                            <input
+                                type="number"
+                                value={heightCm}
+                                onChange={(e) => setHeightCm(parseFloat(e.target.value) || DEFAULT_HEIGHT_CM)}
+                                step="0.1"
+                                min="0.5"
+                                max="20"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={() => {
+                            setWidthCm(DEFAULT_WIDTH_CM);
+                            setHeightCm(DEFAULT_HEIGHT_CM);
+                        }}
+                        className="w-full py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                        Reset to Default (2.5 × 3.5)
+                    </button>
                 </div>
 
                 <button
