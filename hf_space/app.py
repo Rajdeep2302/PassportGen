@@ -38,8 +38,7 @@ iface = gr.Interface(
     inputs=gr.Image(type="pil", label="Upload Image"),
     outputs=gr.Image(type="pil", label="Transparent Result"),
     title="Passport Generator Background Removal API",
-    description="This Space hosts the RMBG-1.4 model for extracting subjects from their backgrounds. It serves as the backend for the Passport Generator app.",
-    allow_flagging="never"
+    description="This Space hosts the RMBG-1.4 model for extracting subjects from their backgrounds. It serves as the backend for the Passport Generator app."
 )
 
 if __name__ == "__main__":
