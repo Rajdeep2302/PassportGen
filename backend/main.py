@@ -17,10 +17,8 @@ torch.nn.Module.__getattr__ = _patched_getattr
 
 app = FastAPI(title="Local RMBG-1.4 API")
 
-print("Loading RMBG-1.4 AI model. This may take a moment...")
-# Initialize the pipeline globally so it only loads once at startup
-pipe = pipeline("image-segmentation", model="briaai/RMBG-1.4", trust_remote_code=True)
-print("Model loaded successfully!")
+# We lazy-load the model to prevent Render's 60-second port bind timeout
+pipe = None
 
 # Add CORS middleware to allow the Vite dev server and built frontend
 app.add_middleware(
@@ -37,7 +35,14 @@ async def root():
 
 @app.post("/removebg")
 async def remove_background(image_file: UploadFile = File(...)):
+    global pipe
     try:
+        if pipe is None:
+            print("Lazy-loading RMBG-1.4 AI model. This may take a moment on the first request...")
+            # Loading here allows Uvicorn to instantly start and bind to the PORT for Render
+            pipe = pipeline("image-segmentation", model="briaai/RMBG-1.4", trust_remote_code=True)
+            print("Model loaded successfully!")
+
         input_data = await image_file.read()
         
         # Read the image file as a Pillow Image
