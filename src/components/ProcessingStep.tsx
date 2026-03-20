@@ -54,8 +54,12 @@ export function ProcessingStep({ imageFile, onProcessed, onError }: ProcessingSt
                 formData.append('size', 'auto');
 
                 // Use local FastAPI rembg endpoint
-                // Assuming it runs on port 8000 by default
-                const apiUrl = import.meta.env.VITE_REMBG_API_URL || 'http://localhost:8000/removebg';
+                let apiUrl = import.meta.env.VITE_REMBG_API_URL || 'http://localhost:8000/removebg';
+                
+                // Safely ensure `/removebg` is appended so we don't accidentally POST to `/` (which causes Method Not Allowed)
+                if (!apiUrl.endsWith('/removebg')) {
+                    apiUrl = apiUrl.endsWith('/') ? `${apiUrl}removebg` : `${apiUrl}/removebg`;
+                }
                 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
