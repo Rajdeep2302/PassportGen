@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { UploadStep } from './components/UploadStep';
 import { ProcessingStep } from './components/ProcessingStep';
 import { CropStep } from './components/CropStep';
@@ -6,13 +6,14 @@ import { ExportStep } from './components/ExportStep';
 import { AdjustmentStep } from './components/AdjustmentStep';
 import { HelpModal } from './components/HelpModal';
 import { RestoreStep } from './components/RestoreStep';
-import { Camera, HelpCircle, Palette, RefreshCw } from 'lucide-react';
+import { Camera, HelpCircle, Palette, RefreshCw, ServerOff } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 
 type Step = 'upload' | 'processing' | 'crop' | 'adjust' | 'export';
 
 function App() {
+  const [isBackendConnected, setIsBackendConnected] = useState(true);
   const [appMode, setAppMode] = useState<'passport' | 'restore'>('passport');
   const [currentStep, setCurrentStep] = useState<Step>('upload');
   const [showHelp, setShowHelp] = useState(false);
@@ -29,6 +30,31 @@ function App() {
   const headerRef = useRef<HTMLElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const stepContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Poll backend connection status continuously
+    const checkBackend = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_REMBG_API_URL || 'http://localhost:8000';
+        const baseUrl = apiUrl.replace('/removebg', '');
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
+        const res = await fetch(baseUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        setIsBackendConnected(res.ok);
+      } catch (e) {
+        setIsBackendConnected(false);
+      }
+    };
+    
+    checkBackend();
+    const interval = setInterval(checkBackend, 3000); // Check every 3 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
 
   useGSAP(() => {
     // Initial App Load Animations
@@ -219,6 +245,25 @@ function App() {
           )}
         </div>
       </main>
+
+      {/* Backend Connection Warning Modal */}
+      {!isBackendConnected && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl max-w-md w-full text-center relative overflow-hidden border border-red-100 dark:border-red-900/30">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-orange-500"></div>
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6 text-red-600 dark:text-red-400">
+              <ServerOff className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Backend Offline</h2>
+            <p className="text-slate-600 dark:text-slate-400 mb-6 text-sm leading-relaxed">
+              We cannot connect to the AI backend server. Please make sure you have started it.
+            </p>
+            <p className="text-sm text-slate-500 dark:text-slate-500 animate-pulse font-medium">
+              Waiting for connection...
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="text-center py-6 text-sm text-slate-400 dark:text-slate-600 font-medium">
