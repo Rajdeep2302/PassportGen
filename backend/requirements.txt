@@ -2,5 +2,7 @@ fastapi
 uvicorn
 python-multipart
 torch
+torchvision
 transformers
 pillow
+scikit-image
