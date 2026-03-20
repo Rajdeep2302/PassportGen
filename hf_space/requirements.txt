@@ -1,0 +1,6 @@
+gradio
+torch
+torchvision
+transformers
+pillow
+scikit-image

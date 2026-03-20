@@ -1,8 +1,5 @@
 fastapi
 uvicorn
 python-multipart
-torch
-torchvision
-transformers
 pillow
-scikit-image
+gradio_client

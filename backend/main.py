@@ -1,24 +1,16 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from gradio_client import Client, handle_file
+import tempfile
+import os
 import io
-import torch
-from transformers import pipeline
-from PIL import Image
 
-# --- THE FIX for newer Transformers versions ---
-_orig_getattr = torch.nn.Module.__getattr__
-def _patched_getattr(self, name):
-    if name == "all_tied_weights_keys":
-        return {} # Give transformers an empty dict instead of crashing
-    return _orig_getattr(self, name)
-torch.nn.Module.__getattr__ = _patched_getattr
-# -----------------------------------------------
+HF_SPACE_URL = "torboukechudbo/passport-bg-remover" 
 
-app = FastAPI(title="Local RMBG-1.4 API")
+app = FastAPI(title="Background Removal API using HF Space")
 
-# We lazy-load the model to prevent Render's 60-second port bind timeout
-pipe = None
+client = None
 
 # Add CORS middleware to allow the Vite dev server and built frontend
 app.add_middleware(
@@ -31,34 +23,53 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Background removal API is running locally using RMBG-1.4! The frontend uses the /removebg endpoint."}
+    return {"message": "Background removal API is running locally! It delegates to the Hugging Face Space API."}
 
 @app.post("/removebg")
 async def remove_background(image_file: UploadFile = File(...)):
-    global pipe
+    global client
+    tmp_path = None
     try:
-        if pipe is None:
-            print("Lazy-loading RMBG-1.4 AI model. This may take a moment on the first request...")
-            # Loading here allows Uvicorn to instantly start and bind to the PORT for Render
-            pipe = pipeline("image-segmentation", model="briaai/RMBG-1.4", trust_remote_code=True)
-            print("Model loaded successfully!")
+        if client is None:
+            if HF_SPACE_URL == "your-username/your-hf-space-name":
+                print("WARNING: HF_SPACE_URL is not set to a real Hugging Face space.")
+            print(f"Connecting to Hugging Face Space: {HF_SPACE_URL}...")
+            client = Client(HF_SPACE_URL)
+            print("Connected successfully!")
 
         input_data = await image_file.read()
         
-        # Read the image file as a Pillow Image
-        original_image = Image.open(io.BytesIO(input_data))
+        # Save uploaded file to a temporary location for gradio_client
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png", mode="wb") as tmp:
+            tmp.write(input_data)
+            tmp_path = tmp.name
+
+        # Call the Hugging Face Space API
+        # The Gradio predict method signature depends on the Space's UI.
+        # For our specified gr.Interface, the single input maps to fn(image).
+        print("Sending image to Hugging Face Space...")
+        result_path = client.predict(
+            image=handle_file(tmp_path),
+            api_name="/predict"
+        )
+        print("Received result from Hugging Face Space.")
         
-        # Remove background using the loaded model. The AI returns a transparent PIL Image
-        transparent_cutout = pipe(original_image)
-        
-        # Convert the resulting PIL Image back to raw PNG bytes
-        img_byte_arr = io.BytesIO()
-        transparent_cutout.save(img_byte_arr, format='PNG')
-        output_data = img_byte_arr.getvalue()
-        
-        # Return as PNG image
+        # Read the transparent image byte result
+        with open(result_path, "rb") as f:
+            output_data = f.read()
+            
+        # Return as PNG image stream
         return Response(content=output_data, media_type="image/png")
+    
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+    
+    finally:
+        # Clean up the temporary input file
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception as cleanup_err:
+                print(f"Failed to clean up temp file {tmp_path}: {cleanup_err}")
