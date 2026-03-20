@@ -53,16 +53,12 @@ export function ProcessingStep({ imageFile, onProcessed, onError }: ProcessingSt
                 formData.append('image_file', imageFile);
                 formData.append('size', 'auto');
 
-                const apiKey = import.meta.env.VITE_REMOVE_BG_API_KEY;
-                if (!apiKey) {
-                    throw new Error("Remove.bg API Key goes not exist! Please check your .env file.");
-                }
-
-                const response = await fetch('https://api.remove.bg/v1.0/removebg', {
+                // Use local FastAPI rembg endpoint
+                // Assuming it runs on port 8000 by default
+                const apiUrl = import.meta.env.VITE_REMBG_API_URL || 'http://localhost:8000/removebg';
+                
+                const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'X-Api-Key': apiKey,
-                    },
                     body: formData,
                 });
 
