@@ -40,9 +40,9 @@ async def remove_background(image_file: UploadFile = File(...)):
         input_data = await image_file.read()
         
         # Save uploaded file to a temporary location for gradio_client
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png", mode="wb") as tmp:
+        fd, tmp_path = tempfile.mkstemp(suffix=".png")
+        with os.fdopen(fd, "wb") as tmp:
             tmp.write(input_data)
-            tmp_path = tmp.name
 
         # Call the Hugging Face Space API using the robust fn_index=0
         print("Sending image to Hugging Face Space...")
