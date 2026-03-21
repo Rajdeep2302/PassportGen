@@ -31,7 +31,7 @@ async def remove_background(image_file: UploadFile = File(...)):
     tmp_path = None
     try:
         if client is None:
-            if HF_SPACE_URL == "your-username/your-hf-space-name":
+            if HF_SPACE_URL == "torboukechudbo/passport-bg-remover":
                 print("WARNING: HF_SPACE_URL is not set to a real Hugging Face space.")
             print(f"Connecting to Hugging Face Space: {HF_SPACE_URL}...")
             client = Client(HF_SPACE_URL)
@@ -44,11 +44,11 @@ async def remove_background(image_file: UploadFile = File(...)):
         with os.fdopen(fd, "wb") as tmp:
             tmp.write(input_data)
 
-        # Call the Hugging Face Space API using the robust fn_index=0
+        # Call the Hugging Face Space API using the explicit api_name
         print("Sending image to Hugging Face Space...")
         result_path = client.predict(
-            handle_file(tmp_path),
-            fn_index=0
+            image=handle_file(tmp_path),
+            api_name="/predict"
         )
         print("Received result from Hugging Face Space.")
         
