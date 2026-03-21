@@ -44,13 +44,11 @@ async def remove_background(image_file: UploadFile = File(...)):
             tmp.write(input_data)
             tmp_path = tmp.name
 
-        # Call the Hugging Face Space API
-        # The Gradio predict method signature depends on the Space's UI.
-        # For our specified gr.Interface, the single input maps to fn(image).
+        # Call the Hugging Face Space API using the robust fn_index=0
         print("Sending image to Hugging Face Space...")
         result_path = client.predict(
-            image=handle_file(tmp_path),
-            api_name="/predict"
+            handle_file(tmp_path),
+            fn_index=0
         )
         print("Received result from Hugging Face Space.")
         
