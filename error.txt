@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "D:\2026\baba_project\passport-generator\check_api.py", line 7, in <module>
+    res = client.predict(handle_file("check_api.py"))
+  File "C:\Users\wwwra\AppData\Local\Programs\Python\Python310\lib\site-packages\gradio_client\client.py", line 499, in predict
+    ).result()
+  File "C:\Users\wwwra\AppData\Local\Programs\Python\Python310\lib\site-packages\gradio_client\client.py", line 1484, in result
+    return super().result(timeout=timeout)
+  File "C:\Users\wwwra\AppData\Local\Programs\Python\Python310\lib\concurrent\futures\_base.py", line 458, in result
+    return self.__get_result()
+  File "C:\Users\wwwra\AppData\Local\Programs\Python\Python310\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "C:\Users\wwwra\AppData\Local\Programs\Python\Python310\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\wwwra\AppData\Local\Programs\Python\Python310\lib\site-packages\gradio_client\client.py", line 1080, in _inner
+    predictions = _predict(*data, **kwargs)
+  File "C:\Users\wwwra\AppData\Local\Programs\Python\Python310\lib\site-packages\gradio_client\client.py", line 1194, in _predict
+    raise AppError(
+gradio_client.exceptions.AppError: The upstream Gradio app has raised an exception but has not enabled verbose error reporting. To enable, set show_error=True in launch().

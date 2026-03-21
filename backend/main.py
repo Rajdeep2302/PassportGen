@@ -44,11 +44,11 @@ async def remove_background(image_file: UploadFile = File(...)):
         with os.fdopen(fd, "wb") as tmp:
             tmp.write(input_data)
 
-        # Call the Hugging Face Space API using the explicit api_name
+        # Call the Hugging Face Space API without explicit fn_index or api_name 
+        # as it auto-resolves to the unnamed default endpoint.
         print("Sending image to Hugging Face Space...")
         result_path = client.predict(
-            image=handle_file(tmp_path),
-            api_name="/predict"
+            image=handle_file(tmp_path)
         )
         print("Received result from Hugging Face Space.")
         
